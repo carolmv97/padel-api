@@ -66,3 +66,19 @@ app.get("/api/registrations", (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`API running on http://localhost:${PORT}`));
+// Cambiar estado de una inscripción
+app.patch("/api/registrations/:id", (req, res) => {
+  const { id } = req.params;
+  const { estado } = req.body || {};
+
+  const ALLOWED = ["PENDIENTE", "CONFIRMADA", "LISTA_ESPERA", "CANCELADA"];
+  if (!ALLOWED.includes(estado)) {
+    return res.status(400).json({ error: "estado inválido" });
+  }
+
+  const reg = registrations.find((r) => r.id === id);
+  if (!reg) return res.status(404).json({ error: "inscripción no encontrada" });
+
+  reg.estado = estado;
+  return res.json({ id: reg.id, estado: reg.estado });
+});
