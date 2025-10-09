@@ -76,9 +76,49 @@ app.patch("/api/registrations/:id", (req, res) => {
     return res.status(400).json({ error: "estado inválido" });
   }
 
+  // Si intentan confirmar, respetar cupo por categoría y torneo
+if (estado === "CONFIRMADA") {
+  const cupo = getCupo(reg.torneo_slug, reg.categoria);
+  const confirmadas = countConfirmed(reg.torneo_slug, reg.categoria);
+  if (confirmadas >= cupo) {
+    return res.status(409).json({
+      error: "CUPO_LLENO",
+      detalle: `Cupo ${cupo} alcanzado en ${reg.categoria} para ${reg.torneo_slug}`,
+      cupo,
+      confirmadas,
+    });
+  }
+}
+
+
   const reg = registrations.find((r) => r.id === id);
   if (!reg) return res.status(404).json({ error: "inscripción no encontrada" });
 
   reg.estado = estado;
   return res.json({ id: reg.id, estado: reg.estado });
 });
+
+// Configuración de torneos (MVP en memoria)
+const tournamentConfig = {
+  "torneo-demo-2025": {
+    cupos: {
+      "Mixto": 1,   // ← prueba: solo 1 pareja confirmada en Mixto
+      "3ª": 16,
+      "4ª": 8,
+    },
+  },
+};
+
+function getCupo(torneo_slug, categoria) {
+  const t = tournamentConfig[torneo_slug];
+  return t?.cupos?.[categoria] ?? Infinity; // si no hay cupo definido, sin límite
+}
+
+function countConfirmed(torneo_slug, categoria) {
+  return registrations.filter(
+    (r) =>
+      r.torneo_slug === torneo_slug &&
+      r.categoria === categoria &&
+      r.estado === "CONFIRMADA"
+  ).length;
+}
